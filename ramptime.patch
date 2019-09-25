@@ -1,0 +1,54 @@
+diff --git a/src/wrk.c b/src/wrk.c
+index 51f46f7..0c9b8e7 100644
+--- a/src/wrk.c
++++ b/src/wrk.c
+@@ -58,6 +58,9 @@ static void usage() {
+            "  Time arguments may include a time unit (2s, 2m, 2h)\n");
+ }
+ 
++static uint64_t ramptime = 30;
++static int inramp = 0;
++
+ int main(int argc, char **argv) {
+     char *url, **headers = zmalloc(argc * sizeof(char *));
+     struct http_parser_url parts = {};
+@@ -101,6 +104,7 @@ int main(int argc, char **argv) {
+ 
+     cfg.host = host;
+ 
++    inramp = 1;
+     for (uint64_t i = 0; i < cfg.threads; i++) {
+         thread *t      = &threads[i];
+         t->loop        = aeCreateEventLoop(10 + cfg.connections * 3);
+@@ -135,7 +139,7 @@ int main(int argc, char **argv) {
+     sigaction(SIGINT, &sa, NULL);
+ 
+     char *time = format_time_s(cfg.duration);
+-    printf("Running %s test @ %s\n", time, url);
++    printf("Running %s test @ %s, ramptime = %lu\n", time, url, ramptime);
+     printf("  %"PRIu64" threads and %"PRIu64" connections\n", cfg.threads, cfg.connections);
+ 
+     uint64_t start    = time_us();
+@@ -143,6 +147,8 @@ int main(int argc, char **argv) {
+     uint64_t bytes    = 0;
+     errors errors     = { 0 };
+ 
++    sleep(ramptime);
++    printf("  ramptime elapsed. Starting measurements\n");
+     sleep(cfg.duration);
+     stop = 1;
+ 
+@@ -437,7 +443,12 @@ static void socket_readable(aeEventLoop *loop, int fd, void *data, int mask) {
+         if (http_parser_execute(&c->parser, &parser_settings, c->buf, n) != n) goto error;
+         if (n == 0 && !http_body_is_final(&c->parser)) goto error;
+ 
+-        c->thread->bytes += n;
++        if (inramp) {
++            uint64_t elapsed = time_us() - c->start;
++            if (elapsed > ramptime)
++                inramp = 0;
++        } else
++            c->thread->bytes += n;
+     } while (n == RECVBUF && sock.readable(c) > 0);
+ 
+     return;

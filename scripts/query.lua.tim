@@ -1,0 +1,20 @@
+-- example script that adds a query string
+
+local threadcounter = 1
+local threads = {}
+
+function setup(thread)
+ thread:set("id", threadcounter)
+ table.insert(threads, thread)
+ threadcounter = threadcounter + 1
+end
+
+function init(args)
+ math.randomseed(os.time()*id)
+end
+
+request = function()
+ local param_value = math.random(25000000)
+ path = "/" .. param_value .. ".html"
+ return wrk.format("GET", path)
+end
