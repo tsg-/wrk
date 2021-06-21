@@ -15,7 +15,7 @@ function init(args)
 end
 
 function delay()
- return 1000
+ -- return 1000
 end
 
 function fdelay()
